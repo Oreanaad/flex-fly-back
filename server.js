@@ -17,10 +17,25 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 const app = express();
 // CAMBIO 3: Actualiza el origen de CORS
+// En tu archivo server.js o index.js del BACKEND:
+const allowedOrigins = [
+  'https://flexfly.netlify.app',
+  'http://localhost:5173', // Tu entorno local de Vite
+  'http://localhost:3000'  // Por si acaso usas otros puertos
+];
+
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? 'https://flexfly.netlify.app' 
-    : 'http://localhost:5173'
+  origin: function (origin, callback) {
+    // permitir peticiones sin origen (como Postman o apps móviles)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg = 'El policy de CORS para este sitio no permite acceso desde el origen especificado.';
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
+  credentials: true
 }));
 app.use(express.json({ limit: '50mb' }));
 // Crea esta variable al inicio de tu server.js
@@ -293,8 +308,12 @@ app.post('/api/save-session', async (req, res) => {
       
       samples.forEach((sample, index) => {
         const offset = index * 4;
-        sampleValues.push(sessionId, sample.t, sample.a, sample.b);
-        placeholders.push(`($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4})`);
+  // Validación: Si val_a o val_b son null/NaN, forzamos a 0
+  const valA = (sample.a === null || isNaN(sample.a)) ? 0 : sample.a;
+  const valB = (sample.b === null || isNaN(sample.b)) ? 0 : sample.b;
+  
+  sampleValues.push(sessionId, sample.t, valA, valB);
+  placeholders.push(`($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4})`);
       });
 
       const insertSamplesQuery = `
@@ -308,11 +327,12 @@ app.post('/api/save-session', async (req, res) => {
     console.log(`✅ TODO GUARDADO: Sesión ${sessionId}`);
     res.json({ success: true, sessionId });
 
-  } catch (err) {
+  }  catch (err) {
     if (client) await client.query('ROLLBACK');
-    console.error('❌ ERROR FATAL EN BD:', err.message); // Mira tu consola de Node para ver este error
-    res.status(500).json({ error: err.message, stack: err.stack });
-  } finally {
+    console.error('❌ ERROR EN BD:', err.message); 
+    console.error('Detalle:', err.detail); // <--- ESTO ES CLAVE
+    res.status(500).json({ error: err.message, detail: err.detail });
+} finally {
     if (client) client.release();
   }
 });
