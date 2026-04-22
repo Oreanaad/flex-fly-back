@@ -10,23 +10,26 @@ import nodemailer from 'nodemailer';
 
 const { Pool } = pkg;
 const PORT = process.env.PORT || 5000; // Usa el del .env o 5000 por defecto
-
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 const app = express();
+// CAMBIO 3: Actualiza el origen de CORS
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173'
+  origin: process.env.NODE_ENV === 'production' 
+    ? 'https://flexfly.netlify.app' 
+    : 'http://localhost:5173'
 }));
 app.use(express.json({ limit: '50mb' }));
 // Crea esta variable al inicio de tu server.js
 const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? 'https://tu-app-en-render.onrender.com' 
+  ? 'https://flex-fly-back.onrender.com'
   : `http://localhost:${PORT}`;
 
-// Y dentro de la ruta de registro, cambia la URL:
+// Usa la variable de entorno, o la de Render por defecto si no existe
+
 
 const pool = new Pool({
   user: process.env.USER_POSTGRES,
@@ -125,6 +128,11 @@ const url = `${API_BASE_URL}/api/auth/verify/${verificationToken}`;
 // En server.js
 app.get('/api/auth/verify/:token', async (req, res) => {
   const { token } = req.params;
+  const FRONTEND_URL = process.env.NODE_ENV === 'production'
+  ? 'https://flexfly.netlify.app'
+  : 'http://localhost:5173';
+
+
   try {
     const result = await pool.query(
       'UPDATE users SET is_verified = true, verification_token = NULL WHERE verification_token = $1 RETURNING *', 
@@ -134,7 +142,7 @@ app.get('/api/auth/verify/:token', async (req, res) => {
     if (result.rowCount === 0) return res.status(400).send("Token inválido o expirado.");
     
     // CAMBIO AQUÍ: Redirigir a la nueva pantalla de éxito, no al login directamente
-    res.redirect('http://localhost:5173/verify-success'); 
+  res.redirect(`${FRONTEND_URL}/verify-success`);
 
   } catch (err) {
     console.error("Error al verificar:", err);
