@@ -301,6 +301,9 @@ app.post('/api/save-session', async (req, res) => {
     console.log(`🆔 Sesión creada con ID: ${sessionId}`);
 
     // 2. Insertar los samples con tus nombres de columna: val_a y val_b
+  // ... dentro de app.post('/api/save-session', ...)
+
+    // 2. Insertar los samples con tus nombres de columna: val_a y val_b
     if (samples && samples.length > 0) {
       console.log(`📊 Insertando ${samples.length} muestras...`);
       const sampleValues = [];
@@ -308,12 +311,16 @@ app.post('/api/save-session', async (req, res) => {
       
       samples.forEach((sample, index) => {
         const offset = index * 4;
-  // Validación: Si val_a o val_b son null/NaN, forzamos a 0
-  const valA = (sample.a === null || isNaN(sample.a)) ? 0 : sample.a;
-  const valB = (sample.b === null || isNaN(sample.b)) ? 0 : sample.b;
+        
+        // Validación de valores numéricos
+        const valA = (sample.a === null || isNaN(sample.a)) ? 0 : sample.a;
+        const valB = (sample.b === null || isNaN(sample.b)) ? 0 : sample.b;
+        
+        // SEGURIDAD: Convertir a objeto Date para que PostgreSQL lo reconozca como TIMESTAMP
+        const dbTimestamp = new Date(sample.t);
   
-  sampleValues.push(sessionId, sample.t, valA, valB);
-  placeholders.push(`($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4})`);
+        sampleValues.push(sessionId, dbTimestamp, valA, valB);
+        placeholders.push(`($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4})`);
       });
 
       const insertSamplesQuery = `
@@ -324,6 +331,7 @@ app.post('/api/save-session', async (req, res) => {
     }
 
     await client.query('COMMIT');
+    // ... resto del código
     console.log(`✅ TODO GUARDADO: Sesión ${sessionId}`);
     res.json({ success: true, sessionId });
 
