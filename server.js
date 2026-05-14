@@ -131,25 +131,12 @@ pool.query('SELECT NOW()', (err, res) => {
 // --- CONFIGURAR TRANSPORTE DE EMAIL ---
 // Configura el transporte SMTP para poder enviar correos.
 const transporter = nodemailer.createTransport({
-  // Host SMTP, por ejemplo smtp.gmail.com.
-  host: process.env.EMAIL_HOST, // <--- CAMBIO: Debe ser el host SMTP (ej: smtp.gmail.com)
-
-  // Puerto SMTP.
-  port: process.env.EMAIL_PORT,
-
-  // secure es true si el puerto es 465, false para otros puertos como 587.
-  secure: false ,// true para 465, false para otros
-
-  // Credenciales del correo desde el cual se enviarán emails.
+  host: "smtp.resend.com",
+  port: 587,
+  secure: false,
   auth: {
-    // Usuario/email SMTP.
-    user: process.env.EMAIL_USER,
-
-    // Contraseña o app password SMTP.
-    pass: process.env.EMAIL_PASS
-  },
-   tls: {
-    rejectUnauthorized: false
+    user: "resend",
+    pass: process.env.RESEND_API_KEY
   }
 });
 
@@ -208,7 +195,7 @@ const url = `${API_BASE_URL}/api/auth/verify/${verificationToken}`;
 
 try {
   await transporter.sendMail({
-    from: `"Kawatek Bionics" <${process.env.EMAIL_USER}>`,
+    from: `"Kawatek Bionics" <onboarding@resend.dev>`,
     to: email,
     subject: "Verifica tu cuenta Kawatek",
     html: `
