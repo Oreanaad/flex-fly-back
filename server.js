@@ -144,111 +144,71 @@ const transporter = nodemailer.createTransport({
 // --- RUTA DE REGISTRO CORREGIDA ---
 // Ruta POST para registrar un usuario nuevo.
 app.post('/api/auth/register', async (req, res) => {
-  // Extrae username, email y password enviados desde el frontend.
   const { username, email, password } = req.body;
-
-  // Toma una conexión del pool para usar una transacción.
-  const client = await pool.connect(); // Usamos cliente para la transacción
+  const client = await pool.connect();
 
   try {
-    // Inicia una transacción en PostgreSQL.
-    await client.query('BEGIN'); // Iniciamos la transacción
+    await client.query('BEGIN');
 
-    // 1. Verificar si el usuario ya existe
-    // Busca si ya existe un usuario con ese email.
     const userCheck = await client.query('SELECT * FROM users WHERE email = $1', [email]);
 
-    // Si encontró un usuario, cancela la transacción y responde error.
     if (userCheck.rows.length > 0) {
-      // Revierte cambios pendientes.
       await client.query('ROLLBACK');
-
-      // Devuelve error 400 porque el email ya está registrado.
       return res.status(400).json({ success: false, message: "Email already registered." });
     }
 
-    // 2. Preparar datos
-    // Genera una sal para el hash de la contraseña.
     const salt = await bcrypt.genSalt(10);
-
-    // Crea el hash seguro de la contraseña.
     const hashedPassword = await bcrypt.hash(password, salt);
-
-    // Genera un token aleatorio de verificación de email.
     const verificationToken = crypto.randomBytes(32).toString('hex');
 
-    // 3. Insertar en la base de datos (is_verified = false por defecto)
-    // Inserta el usuario nuevo en la tabla users.
     await client.query(
       'INSERT INTO users (username, email, password, verification_token, is_verified) VALUES ($1, $2, $3, $4, $5)',
       [username, email, hashedPassword, verificationToken, false]
     );
 
-    // 4. Enviar el correo bonito
-    // Arma la URL de verificación que recibirá el usuario por email.
-const url = `${API_BASE_URL}/api/auth/verify/${verificationToken}`;
-    // En server.js
+    const url = `${API_BASE_URL}/api/auth/verify/${verificationToken}`;
 
-    
-    // Envía el email de verificación al usuario.
-   let emailSent = false;
-
-try {
-  await transporter.sendMail({
-    from: `"Kawatek Bionics" <onboarding@resend.dev>`,
-    to: email,
-    subject: "Verifica tu cuenta Kawatek",
-    html: `
-      <div style="font-family: sans-serif; border: 1px solid #eee; padding: 40px; border-radius: 15px; max-width: 500px; margin: auto;">
-        <div style="text-align: center; margin-bottom: 20px;">
-          <h2 style="color: #0f172a; margin-top: 0;">Welcome, ${username}!</h2>
-        </div>
-        <p style="color: #475569; line-height: 1.6;">Thanks for joining the Kawatek rehabilitation platform. You are one step away from starting EMG monitoring and patient management.</p>
-        <p style="color: #475569; line-height: 1.6;">To activate your account, click the button below :</p>
-        <div style="text-align: center; margin-top: 30px; margin-bottom: 30px;">
-          <a href="${url}" style="background-color: #6d28d9; color: white; padding: 14px 30px; text-decoration: none; border-radius: 10px; font-weight: bold; display: inline-block; box-shadow: 0 4px 6px rgba(109, 40, 217, 0.2);">VERIFY YOUR ACCOUNT</a>
-        </div>
-        <p style="font-size: 12px; color: #94a3b8; text-align: center;">If the button doesn't work, copy this link into your browser:<br/> 
-        <span style="color: #6d28d9;">${url}</span></p>
-        <hr style="border: 0; border-top: 1px solid #f1f5f9; margin-top: 30px;"/>
-        <p style="font-size: 11px; color: #cbd5e1; text-align: center;">Rehabilitation software - Kawatek 2026</p>
-      </div>
-    `
-  });
-
-  emailSent = true;
-} catch (mailError) {
-  console.error("❌ Falló el email:", mailError.message);
-}
-
-    // 5. Si el correo se envió, confirmamos los cambios en la DB
-    // Confirma definitivamente la inserción del usuario.
     await client.query('COMMIT');
 
-    // Muestra en consola que el registro fue exitoso.
-    console.log(`📧 Registro exitoso y correo enviado a: ${email}`);
+    res.status(201).json({
+      success: true,
+      message: "Check your email to verify your account."
+    });
 
-    // Responde al frontend indicando que debe verificar el email.
-   res.status(201).json({
-  success: true,
-  message: emailSent
-    ? "Check your email to verify your account."
-    : "Account created, but email could not be sent.",
-  verificationToken
-});
+    transporter.sendMail({
+      from: `"Kawatek Bionics" <onboarding@resend.dev>`,
+      to: email,
+      subject: "Verifica tu cuenta Kawatek",
+      html: `
+        <div style="font-family: sans-serif; border: 1px solid #eee; padding: 40px; border-radius: 15px; max-width: 500px; margin: auto;">
+          <div style="text-align: center; margin-bottom: 20px;">
+            <h2 style="color: #0f172a; margin-top: 0;">Welcome, ${username}!</h2>
+          </div>
+          <p style="color: #475569; line-height: 1.6;">Thanks for joining the Kawatek rehabilitation platform. You are one step away from starting EMG monitoring and patient management.</p>
+          <p style="color: #475569; line-height: 1.6;">To activate your account, click the button below:</p>
+          <div style="text-align: center; margin-top: 30px; margin-bottom: 30px;">
+            <a href="${url}" style="background-color: #6d28d9; color: white; padding: 14px 30px; text-decoration: none; border-radius: 10px; font-weight: bold; display: inline-block;">VERIFY YOUR ACCOUNT</a>
+          </div>
+          <p style="font-size: 12px; color: #94a3b8; text-align: center;">If the button doesn't work, copy this link:<br/>
+          <span style="color: #6d28d9;">${url}</span></p>
+        </div>
+      `
+    }).then(() => {
+      console.log(`✅ Email enviado a ${email}`);
+    }).catch((mailError) => {
+      console.error("❌ Falló el email:", mailError.message);
+    });
+
   } catch (err) {
-    // 6. Si algo falló (DB o Correo), deshacemos todo
-    // Si falla la base o el email, revierte la transacción.
     await client.query('ROLLBACK');
-
-    // Muestra el error completo en consola.
     console.error("❌ Error en el proceso de registro:", err);
 
-    // Responde error 500 al frontend.
-    res.status(500).json({ success: false, message: "The registration failed. Please try again." });
+    res.status(500).json({
+      success: false,
+      message: "The registration failed. Please try again."
+    });
   } finally {
-    // Libera la conexión para que vuelva al pool.
-    client.release(); // Liberamos la conexión al pool
+    client.release();
   }
 });
 
