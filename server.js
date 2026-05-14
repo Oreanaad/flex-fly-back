@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 
 // Importa path para trabajar con rutas de archivos y carpetas.
 import path from 'path';
-import fetch from "node-fetch";
+
 // Importa fileURLToPath para convertir la URL del módulo actual en una ruta de archivo.
 import { fileURLToPath } from 'url';
 
