@@ -114,6 +114,8 @@ const pool = new Pool({
 
   // Puerto de PostgreSQL.
   port: process.env.PORT_POSTGRES,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+
 });
 
 // Test de conexión
@@ -145,7 +147,10 @@ const transporter = nodemailer.createTransport({
 
     // Contraseña o app password SMTP.
     pass: process.env.EMAIL_PASS
-  }
+  },
+  connectionTimeout: 20000, // 20 segundos
+  greetingTimeout: 20000,
+  socketTimeout: 20000
 });
 
 // --- RUTA DE REGISTRO CON LOGS ---
