@@ -131,13 +131,16 @@ pool.query('SELECT NOW()', (err, res) => {
 // --- CONFIGURAR TRANSPORTE DE EMAIL ---
 // Configura el transporte SMTP para poder enviar correos.
 const transporter = nodemailer.createTransport({
-  host: "smtp.resend.com",
-  port: 587,
-  secure: false,
+  service: "gmail",
   auth: {
-    user: "resend",
-    pass: process.env.RESEND_API_KEY
-  }
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
+  },
+  logger: true,
+  debug: true,
+  connectionTimeout: 10000,
+  greetingTimeout: 10000,
+  socketTimeout: 10000
 });
 
 // --- RUTA DE REGISTRO CON LOGS ---
@@ -175,31 +178,35 @@ app.post('/api/auth/register', async (req, res) => {
       message: "Check your email to verify your account."
     });
 
-   fetch("https://api.resend.com/emails", {
-  method: "POST",
-  headers: {
-    "Authorization": `Bearer ${process.env.RESEND_API_KEY}`,
-    "Content-Type": "application/json"
-  },
-  body: JSON.stringify({
-    from: "Kawatek <onboarding@resend.dev>",
-    to: [email],
-    subject: "Verifica tu cuenta Kawatek",
-    html: `
-      <p>Welcome ${username}</p>
-      <p>Verify your account:</p>
-      <a href="${url}">${url}</a>
-    `
+  transporter.verify()
+  .then(() => {
+    console.log("✅ SMTP listo");
+
+    return transporter.sendMail({
+      from: `"Kawatek Bionics" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: "Verifica tu cuenta Kawatek",
+      html: `
+        <p>Welcome ${username}</p>
+        <p>Verify your account:</p>
+        <a href="${url}">${url}</a>
+      `
+    });
   })
-})
-.then(async (response) => {
-  const data = await response.text();
-  console.log("📨 RESEND STATUS:", response.status);
-  console.log("📨 RESEND BODY:", data);
-})
-.catch((err) => {
-  console.error("❌ Error mail:", err.message);
-});
+  .then((info) => {
+    console.log("✅ Email enviado");
+    console.log("MESSAGE ID:", info.messageId);
+    console.log("ACCEPTED:", info.accepted);
+    console.log("REJECTED:", info.rejected);
+    console.log("RESPONSE:", info.response);
+  })
+  .catch((mailError) => {
+    console.error("❌ SMTP ERROR MESSAGE:", mailError.message);
+    console.error("❌ SMTP ERROR CODE:", mailError.code);
+    console.error("❌ SMTP ERROR COMMAND:", mailError.command);
+    console.error("❌ SMTP ERROR RESPONSE:", mailError.response);
+    console.error("❌ SMTP FULL ERROR:", mailError);
+  });
 
   } catch (err) {
     await client.query('ROLLBACK');
