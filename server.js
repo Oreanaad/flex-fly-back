@@ -24,7 +24,9 @@ import crypto from 'crypto'; // Viene con Node
 
 // Importa nodemailer para enviar emails desde el backend.
 import nodemailer from 'nodemailer';
+import dns from 'dns';
 
+dns.setDefaultResultOrder('ipv4first');
 // Extrae Pool desde el paquete pg.
 // Pool permite manejar varias conexiones a PostgreSQL de forma eficiente.
 const { Pool } = pkg;
@@ -135,6 +137,7 @@ const transporter = nodemailer.createTransport({
   port: 587,
   secure: false,
   requireTLS: true,
+  family: 4,
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS
