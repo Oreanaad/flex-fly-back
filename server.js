@@ -135,7 +135,7 @@ const transporter = nodemailer.createTransport({
   host: process.env.EMAIL_HOST, // <--- CAMBIO: Debe ser el host SMTP (ej: smtp.gmail.com)
 
   // Puerto SMTP.
-port: Number(process.env.EMAIL_PORT),
+  port: process.env.EMAIL_PORT,
 
   // secure es true si el puerto es 465, false para otros puertos como 587.
   secure: false ,// true para 465, false para otros
@@ -204,34 +204,35 @@ const url = `${API_BASE_URL}/api/auth/verify/${verificationToken}`;
 
     
     // Envía el email de verificación al usuario.
-    await transporter.sendMail({
-      // Remitente del correo.
-      from: `"Kawatek Bionics" <${process.env.EMAIL_USER}>`,
+   let emailSent = false;
 
-      // Destinatario del correo.
-      to: email,
-
-      // Asunto del correo.
-      subject: "Verifica tu cuenta Kawatek",
-
-      // Cuerpo HTML del correo.
-      html: `
-        <div style="font-family: sans-serif; border: 1px solid #eee; padding: 40px; border-radius: 15px; max-width: 500px; margin: auto;">
-          <div style="text-align: center; margin-bottom: 20px;">
-            <h2 style="color: #0f172a; margin-top: 0;">Welcome, ${username}!</h2>
-          </div>
-          <p style="color: #475569; line-height: 1.6;">Thanks for joining the Kawatek rehabilitation platform. You are one step away from starting EMG monitoring and patient management.</p>
-          <p style="color: #475569; line-height: 1.6;">To activate your account, click the button below :</p>
-          <div style="text-align: center; margin-top: 30px; margin-bottom: 30px;">
-            <a href="${url}" style="background-color: #6d28d9; color: white; padding: 14px 30px; text-decoration: none; border-radius: 10px; font-weight: bold; display: inline-block; box-shadow: 0 4px 6px rgba(109, 40, 217, 0.2);">VERIFY YOUR ACCOUNT</a>
-          </div>
-          <p style="font-size: 12px; color: #94a3b8; text-align: center;">If the button doesn't work, copy this link into your browser:<br/> 
-          <span style="color: #6d28d9;">${url}</span></p>
-          <hr style="border: 0; border-top: 1px solid #f1f5f9; margin-top: 30px;"/>
-          <p style="font-size: 11px; color: #cbd5e1; text-align: center;">Rehabilitation software - Kawatek 2026</p>
+try {
+  await transporter.sendMail({
+    from: `"Kawatek Bionics" <${process.env.EMAIL_USER}>`,
+    to: email,
+    subject: "Verifica tu cuenta Kawatek",
+    html: `
+      <div style="font-family: sans-serif; border: 1px solid #eee; padding: 40px; border-radius: 15px; max-width: 500px; margin: auto;">
+        <div style="text-align: center; margin-bottom: 20px;">
+          <h2 style="color: #0f172a; margin-top: 0;">Welcome, ${username}!</h2>
         </div>
-      `
-    });
+        <p style="color: #475569; line-height: 1.6;">Thanks for joining the Kawatek rehabilitation platform. You are one step away from starting EMG monitoring and patient management.</p>
+        <p style="color: #475569; line-height: 1.6;">To activate your account, click the button below :</p>
+        <div style="text-align: center; margin-top: 30px; margin-bottom: 30px;">
+          <a href="${url}" style="background-color: #6d28d9; color: white; padding: 14px 30px; text-decoration: none; border-radius: 10px; font-weight: bold; display: inline-block; box-shadow: 0 4px 6px rgba(109, 40, 217, 0.2);">VERIFY YOUR ACCOUNT</a>
+        </div>
+        <p style="font-size: 12px; color: #94a3b8; text-align: center;">If the button doesn't work, copy this link into your browser:<br/> 
+        <span style="color: #6d28d9;">${url}</span></p>
+        <hr style="border: 0; border-top: 1px solid #f1f5f9; margin-top: 30px;"/>
+        <p style="font-size: 11px; color: #cbd5e1; text-align: center;">Rehabilitation software - Kawatek 2026</p>
+      </div>
+    `
+  });
+
+  emailSent = true;
+} catch (mailError) {
+  console.error("❌ Falló el email:", mailError.message);
+}
 
     // 5. Si el correo se envió, confirmamos los cambios en la DB
     // Confirma definitivamente la inserción del usuario.
@@ -241,8 +242,13 @@ const url = `${API_BASE_URL}/api/auth/verify/${verificationToken}`;
     console.log(`📧 Registro exitoso y correo enviado a: ${email}`);
 
     // Responde al frontend indicando que debe verificar el email.
-    res.status(201).json({ success: true, message: "Check your email to verify your account." });
-
+   res.status(201).json({
+  success: true,
+  message: emailSent
+    ? "Check your email to verify your account."
+    : "Account created, but email could not be sent.",
+  verificationToken
+});
   } catch (err) {
     // 6. Si algo falló (DB o Correo), deshacemos todo
     // Si falla la base o el email, revierte la transacción.
