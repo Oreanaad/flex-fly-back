@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 
 // Importa path para trabajar con rutas de archivos y carpetas.
 import path from 'path';
-
+import fetch from "node-fetch";
 // Importa fileURLToPath para convertir la URL del módulo actual en una ruta de archivo.
 import { fileURLToPath } from 'url';
 
@@ -175,29 +175,27 @@ app.post('/api/auth/register', async (req, res) => {
       message: "Check your email to verify your account."
     });
 
-    transporter.sendMail({
-      from: `"Kawatek Bionics" <onboarding@resend.dev>`,
-      to: email,
-      subject: "Verifica tu cuenta Kawatek",
-      html: `
-        <div style="font-family: sans-serif; border: 1px solid #eee; padding: 40px; border-radius: 15px; max-width: 500px; margin: auto;">
-          <div style="text-align: center; margin-bottom: 20px;">
-            <h2 style="color: #0f172a; margin-top: 0;">Welcome, ${username}!</h2>
-          </div>
-          <p style="color: #475569; line-height: 1.6;">Thanks for joining the Kawatek rehabilitation platform. You are one step away from starting EMG monitoring and patient management.</p>
-          <p style="color: #475569; line-height: 1.6;">To activate your account, click the button below:</p>
-          <div style="text-align: center; margin-top: 30px; margin-bottom: 30px;">
-            <a href="${url}" style="background-color: #6d28d9; color: white; padding: 14px 30px; text-decoration: none; border-radius: 10px; font-weight: bold; display: inline-block;">VERIFY YOUR ACCOUNT</a>
-          </div>
-          <p style="font-size: 12px; color: #94a3b8; text-align: center;">If the button doesn't work, copy this link:<br/>
-          <span style="color: #6d28d9;">${url}</span></p>
-        </div>
-      `
-    }).then(() => {
-      console.log(`✅ Email enviado a ${email}`);
-    }).catch((mailError) => {
-      console.error("❌ Falló el email:", mailError.message);
-    });
+   fetch("https://api.resend.com/emails", {
+  method: "POST",
+  headers: {
+    "Authorization": `Bearer ${process.env.RESEND_API_KEY}`,
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({
+    from: "Kawatek <onboarding@resend.dev>",
+    to: [email],
+    subject: "Verifica tu cuenta Kawatek",
+    html: `
+      <p>Welcome ${username}</p>
+      <p>Verify your account:</p>
+      <a href="${url}">${url}</a>
+    `
+  })
+}).then(() => {
+  console.log("✅ Email enviado");
+}).catch((err) => {
+  console.error("❌ Error mail:", err.message);
+});
 
   } catch (err) {
     await client.query('ROLLBACK');
