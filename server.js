@@ -135,10 +135,10 @@ const transporter = nodemailer.createTransport({
   host: process.env.EMAIL_HOST, // <--- CAMBIO: Debe ser el host SMTP (ej: smtp.gmail.com)
 
   // Puerto SMTP.
-  port: process.env.EMAIL_PORT,
+port: Number(process.env.EMAIL_PORT),
 
   // secure es true si el puerto es 465, false para otros puertos como 587.
-  secure: process.env.EMAIL_PORT == 465, // true para 465, false para otros
+  secure: false ,// true para 465, false para otros
 
   // Credenciales del correo desde el cual se enviarán emails.
   auth: {
@@ -148,9 +148,9 @@ const transporter = nodemailer.createTransport({
     // Contraseña o app password SMTP.
     pass: process.env.EMAIL_PASS
   },
-  connectionTimeout: 20000, // 20 segundos
-  greetingTimeout: 20000,
-  socketTimeout: 20000
+   tls: {
+    rejectUnauthorized: false
+  }
 });
 
 // --- RUTA DE REGISTRO CON LOGS ---
