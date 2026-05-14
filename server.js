@@ -191,9 +191,13 @@ app.post('/api/auth/register', async (req, res) => {
       <a href="${url}">${url}</a>
     `
   })
-}).then(() => {
-  console.log("✅ Email enviado");
-}).catch((err) => {
+})
+.then(async (response) => {
+  const data = await response.text();
+  console.log("📨 RESEND STATUS:", response.status);
+  console.log("📨 RESEND BODY:", data);
+})
+.catch((err) => {
   console.error("❌ Error mail:", err.message);
 });
 
